@@ -12,6 +12,8 @@ public static class DependencyInjection
         services.AddExceptionHandler<GlobalExceptionHandler>();
         services.AddProblemDetails();
 
+        services.AddHttpClient();
+
         return services;
     }
 }
