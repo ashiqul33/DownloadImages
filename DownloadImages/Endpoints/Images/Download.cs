@@ -4,9 +4,9 @@ namespace DownloadImages.Endpoints.Images;
 
 internal sealed class Download : IEndpoint
 {
-    public record RequestDownload(IEnumerable<string> ImageUrls, int MaxDownloadAtOnce);
+    private record RequestDownload(IEnumerable<string> ImageUrls, int MaxDownloadAtOnce);
 
-    public record ResponseDownload(bool Success, string? Message, IDictionary<string, string> UrlAndNames);
+    private record ResponseDownload(bool Success, string? Message, IDictionary<string, string> UrlAndNames);
 
     private const int ChunkSize = 65536;
     private const int PerDownloadTimeoutSeconds = 30;
@@ -83,10 +83,22 @@ internal sealed class Download : IEndpoint
                 {
                     RollbackFiles(env.WebRootPath, urlToNameMap);
 
-                    return Results.BadRequest(new ResponseDownload(false, firstError, new Dictionary<string, string>()));
+                    return Results.BadRequest(
+                        new ResponseDownload(
+                            false,
+                            firstError,
+                            new Dictionary<string, string>()
+                        )
+                    );
                 }
 
-                return Results.Ok(new ResponseDownload(true, null, new Dictionary<string, string>(urlToNameMap)));
+                return Results.Ok(
+                    new ResponseDownload(
+                        true,
+                        null,
+                        new Dictionary<string, string>(urlToNameMap)
+                    )
+                );
             }
         );
     }
@@ -101,7 +113,7 @@ internal sealed class Download : IEndpoint
         CancellationTokenSource batchCts
     )
     {
-        await semaphore.WaitAsync(batchCts.Token).ConfigureAwait(false);
+        await semaphore.WaitAsync(batchCts.Token);
         try
         {
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(PerDownloadTimeoutSeconds));
@@ -111,8 +123,7 @@ internal sealed class Download : IEndpoint
             HttpClient httpClient = httpClientFactory.CreateClient();
 
             using HttpResponseMessage response = await httpClient
-                .GetAsync(url, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token)
-                .ConfigureAwait(false);
+                .GetAsync(url, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token);
 
             response.EnsureSuccessStatusCode();
 
@@ -129,19 +140,19 @@ internal sealed class Download : IEndpoint
                 FileOptions.Asynchronous | FileOptions.SequentialScan
             );
 
-            await using Stream body = await response.Content.ReadAsStreamAsync(linkedCts.Token).ConfigureAwait(false);
+            await using Stream body = await response.Content.ReadAsStreamAsync(linkedCts.Token);
 
             byte[] buffer = new byte[ChunkSize];
             int read;
             while (
-                (read = await body.ReadAsync(buffer.AsMemory(0, ChunkSize), linkedCts.Token).ConfigureAwait(false)) >
+                (read = await body.ReadAsync(buffer.AsMemory(0, ChunkSize), linkedCts.Token)) >
                 0
             )
             {
-                await fs.WriteAsync(buffer.AsMemory(0, read), linkedCts.Token).ConfigureAwait(false);
+                await fs.WriteAsync(buffer.AsMemory(0, read), linkedCts.Token);
             }
 
-            await fs.FlushAsync(linkedCts.Token).ConfigureAwait(false);
+            await fs.FlushAsync(linkedCts.Token);
 
             urlToNameMap[url] = fileName;
             return DownloadOutcome.Success;
@@ -156,12 +167,13 @@ internal sealed class Download : IEndpoint
             {
                 try
                 {
-                    await batchCts.CancelAsync().ConfigureAwait(false);
+                    await batchCts.CancelAsync();
                 }
                 catch (ObjectDisposedException)
                 {
                 }
             }
+
             return DownloadOutcome.Failed;
         }
         finally
@@ -237,6 +249,7 @@ internal sealed class Download : IEndpoint
                 Volatile.Write(ref _message, message);
                 return true;
             }
+
             return false;
         }
 
